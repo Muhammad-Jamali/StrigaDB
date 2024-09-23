@@ -1,37 +1,44 @@
-use std::{fs, path::Path};
+use crate::env::Config;
+use std::{
+    fs::{self, File},
+    io,
+    path::Path,
+};
 
-use crate::env::get_config;
+use super::Collection;
 
-pub fn create_collection(name: &str) {
-    let config = get_config();
-    let path = Path::new(&config.default_path).join(name);
-
-    if path.exists() {
-        eprintln!("collection already exists ignoring creation for collection {name}");
-        return;
-    }
-
-    let _ = fs::create_dir(path);
-    println!("{name} collection successfully created");
-}
-
-pub fn get_all_collections() {
-    let config = get_config();
-    let path = Path::new(&config.default_path);
-
-    for entry in fs::read_dir(path).unwrap() {
-        println!("{:?}", entry.unwrap().file_name())
+impl Collection {
+    pub fn create(config: &'static Config) -> Create {
+        Create { config }
     }
 }
 
-pub fn get_collection(name: &str) -> bool {
-    let config = get_config();
-    let path = Path::new(&config.default_path).join(name);
+pub struct Create {
+    config: &'static Config,
+}
 
-    if !path.exists() {
-        println!("path doesn't exists!");
-        return false;
+impl Create {
+    pub fn create_collection(&self, name: &str) -> Result<String, io::Error> {
+        let path = Path::new(&self.config.default_path).join(name);
+
+        if path.exists() {
+            return Ok(String::from("collection already exists!"));
+        }
+
+        fs::create_dir_all(&path)?;
+        let path = path.join("data.srb");
+        File::create(path)?;
+        Ok(String::from("collection created successfully!"))
     }
 
-    true
+    pub fn get_all_collections(&self) -> Vec<String> {
+        let path = Path::new(&self.config.default_path);
+
+        let mut collections: Vec<String> = vec![];
+
+        for entry in fs::read_dir(path).unwrap() {
+            collections.push(entry.unwrap().file_name().into_string().unwrap());
+        }
+        collections
+    }
 }
